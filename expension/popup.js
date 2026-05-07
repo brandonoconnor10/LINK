@@ -1,4 +1,4 @@
-// save button
+// Handle Save button
 document.getElementById('saveBtn').addEventListener('click', async () => {
   const url = document.getElementById('urlInput').value;
   const title = document.getElementById('titleInput').value;
@@ -23,7 +23,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   }
 });
 
-// view button
+// Handle View button
 document.getElementById('viewBtn').addEventListener('click', async () => {
   try {
     const response = await fetch('http://localhost:5000/api/getLinks');
