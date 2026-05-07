@@ -1,3 +1,4 @@
+// save button
 document.getElementById('saveBtn').addEventListener('click', async () => {
   const url = document.getElementById('urlInput').value;
   const title = document.getElementById('titleInput').value;
@@ -19,5 +20,25 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   } catch (err) {
     console.error(err);
     alert('Error saving link');
+  }
+});
+
+// view button
+document.getElementById('viewBtn').addEventListener('click', async () => {
+  try {
+    const response = await fetch('http://localhost:5000/api/getLinks');
+    const links = await response.json();
+
+    const list = document.getElementById('linksList');
+    list.innerHTML = '';
+
+    links.forEach(link => {
+      const item = document.createElement('li');
+      item.textContent = `${link.title} - ${link.url}`;
+      list.appendChild(item);
+    });
+  } catch (err) {
+    console.error(err);
+    alert('Error fetching links');
   }
 });
