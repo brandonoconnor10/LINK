@@ -35,3 +35,19 @@ router.get('/getLinks', async (req, res) => {
 });
 
 module.exports = router;
+
+// Delete a link by ID
+router.delete('/deleteLink/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await Link.findByIdAndDelete(id);
+
+    if (!result) {
+      return res.status(404).json({ message: 'Link not found' });
+    }
+
+    res.json({ message: 'Link deleted successfully', deleted: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
