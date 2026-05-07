@@ -23,27 +23,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   }
 });
 
-// Handle View button
-document.getElementById('viewBtn').addEventListener('click', async () => {
-  try {
-    const response = await fetch('http://localhost:5000/api/getLinks');
-    const links = await response.json();
-
-    const list = document.getElementById('linksList');
-    list.innerHTML = '';
-
-    links.forEach(link => {
-      const item = document.createElement('li');
-      item.textContent = `${link.title} - ${link.url}`;
-      list.appendChild(item);
-    });
-  } catch (err) {
-    console.error(err);
-    alert('Error fetching links');
-  }
-});
-
-
+// Handle View button (single clean handler)
 document.getElementById('viewBtn').addEventListener('click', async () => {
   try {
     const response = await fetch('http://localhost:5000/api/getLinks');
@@ -56,7 +36,7 @@ document.getElementById('viewBtn').addEventListener('click', async () => {
       const item = document.createElement('li');
       item.textContent = `${link.title} - ${link.url}`;
 
-      // Add delete button
+      // Delete button
       const delBtn = document.createElement('button');
       delBtn.textContent = 'Delete';
       delBtn.onclick = async () => {
@@ -65,57 +45,47 @@ document.getElementById('viewBtn').addEventListener('click', async () => {
             method: 'DELETE'
           });
           alert('Link deleted!');
-          item.remove(); // remove from UI
+          item.remove();
         } catch (err) {
           console.error(err);
           alert('Error deleting link');
         }
       };
 
+      // Edit button
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Edit';
+      editBtn.onclick = async () => {
+        const newTitle = prompt('Enter new title:', link.title);
+        const newUrl = prompt('Enter new URL:', link.url);
+
+        if (newTitle && newUrl) {
+          try {
+            const response = await fetch(`http://localhost:5000/api/updateLink/${link._id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: newTitle, url: newUrl })
+            });
+
+            const data = await response.json();
+            alert('Link updated!');
+            item.textContent = `${data.updated.title} - ${data.updated.url}`;
+            item.appendChild(delBtn);
+            item.appendChild(editBtn);
+          } catch (err) {
+            console.error(err);
+            alert('Error updating link');
+          }
+        }
+      };
+
+      // Attach buttons
       item.appendChild(delBtn);
+      item.appendChild(editBtn);
       list.appendChild(item);
     });
   } catch (err) {
     console.error(err);
     alert('Error fetching links');
   }
-});
-
-links.forEach(link => {
-  const item = document.createElement('li');
-  item.textContent = `${link.title} - ${link.url}`;
-
-  // Delete button
-  const delBtn = document.createElement('button');
-  delBtn.textContent = 'Delete';
-  delBtn.onclick = async () => {
-    await fetch(`http://localhost:5000/api/deleteLink/${link._id}`, { method: 'DELETE' });
-    item.remove();
-  };
-
-  // Edit button
-  const editBtn = document.createElement('button');
-  editBtn.textContent = 'Edit';
-  editBtn.onclick = async () => {
-    const newTitle = prompt('Enter new title:', link.title);
-    const newUrl = prompt('Enter new URL:', link.url);
-
-    if (newTitle && newUrl) {
-      const response = await fetch(`http://localhost:5000/api/updateLink/${link._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTitle, url: newUrl })
-      });
-
-      const data = await response.json();
-      alert('Link updated!');
-      item.textContent = `${data.updated.title} - ${data.updated.url}`;
-      item.appendChild(delBtn);
-      item.appendChild(editBtn);
-    }
-  };
-
-  item.appendChild(delBtn);
-  item.appendChild(editBtn);
-  list.appendChild(item);
 });
