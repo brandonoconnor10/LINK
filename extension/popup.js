@@ -23,6 +23,27 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   }
 });
 
+// Handle View button
+document.getElementById('viewBtn').addEventListener('click', async () => {
+  try {
+    const response = await fetch('http://localhost:5000/api/getLinks');
+    const links = await response.json();
+
+    const list = document.getElementById('linksList');
+    list.innerHTML = '';
+
+    links.forEach(link => {
+      const item = document.createElement('li');
+      item.textContent = `${link.title} - ${link.url}`;
+      list.appendChild(item);
+    });
+  } catch (err) {
+    console.error(err);
+    alert('Error fetching links');
+  }
+});
+
+
 document.getElementById('viewBtn').addEventListener('click', async () => {
   try {
     const response = await fetch('http://localhost:5000/api/getLinks');
@@ -57,5 +78,66 @@ document.getElementById('viewBtn').addEventListener('click', async () => {
   } catch (err) {
     console.error(err);
     alert('Error fetching links');
+  }
+});
+
+links.forEach(link => {
+  const item = document.createElement('li');
+  item.textContent = `${link.title} - ${link.url}`;
+
+  // Delete button
+  const delBtn = document.createElement('button');
+  delBtn.textContent = 'Delete';
+  delBtn.onclick = async () => {
+    await fetch(`http://localhost:5000/api/deleteLink/${link._id}`, { method: 'DELETE' });
+    item.remove();
+  };
+
+  // Edit button
+  const editBtn = document.createElement('button');
+  editBtn.textContent = 'Edit';
+  editBtn.onclick = async () => {
+    const newTitle = prompt('Enter new title:', link.title);
+    const newUrl = prompt('Enter new URL:', link.url);
+
+    if (newTitle && newUrl) {
+      const response = await fetch(`http://localhost:5000/api/updateLink/${link._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle, url: newUrl })
+      });
+
+      const data = await response.json();
+      alert('Link updated!');
+      item.textContent = `${data.updated.title} - ${data.updated.url}`;
+      item.appendChild(delBtn);
+      item.appendChild(editBtn);
+    }
+  };
+
+  item.appendChild(delBtn);
+  item.appendChild(editBtn);
+  list.appendChild(item);
+});
+
+// Update a link by ID
+router.put('/updateLink/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { url, title } = req.body;
+
+    const updatedLink = await Link.findByIdAndUpdate(
+      id,
+      { url, title },
+      { new: true } // return the updated document
+    );
+
+    if (!updatedLink) {
+      return res.status(404).json({ message: 'Link not found' });
+    }
+
+    res.json({ message: 'Link updated successfully', updated: updatedLink });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
