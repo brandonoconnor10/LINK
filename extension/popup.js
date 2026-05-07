@@ -23,7 +23,6 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   }
 });
 
-// Handle View button
 document.getElementById('viewBtn').addEventListener('click', async () => {
   try {
     const response = await fetch('http://localhost:5000/api/getLinks');
@@ -35,6 +34,24 @@ document.getElementById('viewBtn').addEventListener('click', async () => {
     links.forEach(link => {
       const item = document.createElement('li');
       item.textContent = `${link.title} - ${link.url}`;
+
+      // Add delete button
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Delete';
+      delBtn.onclick = async () => {
+        try {
+          await fetch(`http://localhost:5000/api/deleteLink/${link._id}`, {
+            method: 'DELETE'
+          });
+          alert('Link deleted!');
+          item.remove(); // remove from UI
+        } catch (err) {
+          console.error(err);
+          alert('Error deleting link');
+        }
+      };
+
+      item.appendChild(delBtn);
       list.appendChild(item);
     });
   } catch (err) {
