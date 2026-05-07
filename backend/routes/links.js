@@ -51,3 +51,25 @@ router.delete('/deleteLink/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Update a link by ID
+router.put('/updateLink/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { url, title } = req.body;
+
+    const updatedLink = await Link.findByIdAndUpdate(
+      id,
+      { url, title },
+      { new: true } // return the updated document
+    );
+
+    if (!updatedLink) {
+      return res.status(404).json({ message: 'Link not found' });
+    }
+
+    res.json({ message: 'Link updated successfully', updated: updatedLink });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
