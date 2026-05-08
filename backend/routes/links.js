@@ -34,8 +34,6 @@ router.get('/getLinks', async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // Delete a link by ID
 router.delete('/deleteLink/:id', async (req, res) => {
   try {
@@ -74,3 +72,4 @@ router.put('/updateLink/:id', async (req, res) => {
   }
 });
 
+module.exports = router;
