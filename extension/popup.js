@@ -89,3 +89,22 @@ document.getElementById('viewBtn').addEventListener('click', async () => {
     alert('Error fetching links');
   }
 });
+
+// Google Sign In
+function handleCredentialResponse(response) {
+  // Google returns an ID token
+  const idToken = response.credential;
+
+  // Send it to backend for verification
+  fetch('http://localhost:5000/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ googleId: idToken }) // simplified for now
+  })
+    .then(res => res.json())
+    .then(data => {
+      chrome.storage.local.set({ jwt: data.token });
+      console.log("Logged in:", data.user);
+    })
+    .catch(err => console.error("Login failed", err));
+}
