@@ -3,99 +3,120 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   const url = document.getElementById('urlInput').value;
   const title = document.getElementById('titleInput').value;
 
-  try {
-    const response = await fetch('http://localhost:5000/api/saveLink', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url,
-        title,
-        originClient: 'extension'
-      })
-    });
+  chrome.storage.local.get('jwt', async ({ jwt }) => {
+    if (!jwt) {
+      alert('You must be logged in first.');
+      return;
+    }
 
-    const data = await response.json();
-    console.log('Saved:', data);
-    alert('Link saved!');
-  } catch (err) {
-    console.error(err);
-    alert('Error saving link');
-  }
+    try {
+      const response = await fetch('http://localhost:5000/api/saveLink', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwt}`
+        },
+        body: JSON.stringify({
+          url,
+          title,
+          originClient: 'extension'
+        })
+      });
+
+      const data = await response.json();
+      console.log('Saved:', data);
+      alert('Link saved!');
+    } catch (err) {
+      console.error(err);
+      alert('Error saving link');
+    }
+  });
 });
 
 // Handle View button (single clean handler)
 document.getElementById('viewBtn').addEventListener('click', async () => {
-  try {
-    const response = await fetch('http://localhost:5000/api/getLinks');
-    const links = await response.json();
+  chrome.storage.local.get('jwt', async ({ jwt }) => {
+    if (!jwt) {
+      alert('You must be logged in first.');
+      return;
+    }
 
-    const list = document.getElementById('linksList');
-    list.innerHTML = '';
+    try {
+      const response = await fetch('http://localhost:5000/api/getLinks', {
+        headers: { 'Authorization': `Bearer ${jwt}` }
+      });
+      const links = await response.json();
 
-    links.forEach(link => {
-      const item = document.createElement('li');
-      item.textContent = `${link.title} - ${link.url}`;
+      const list = document.getElementById('linksList');
+      list.innerHTML = '';
 
-      // Delete button
-      const delBtn = document.createElement('button');
-      delBtn.textContent = 'Delete';
-      delBtn.onclick = async () => {
-        try {
-          await fetch(`http://localhost:5000/api/deleteLink/${link._id}`, {
-            method: 'DELETE'
-          });
-          alert('Link deleted!');
-          item.remove();
-        } catch (err) {
-          console.error(err);
-          alert('Error deleting link');
-        }
-      };
+      links.forEach(link => {
+        const item = document.createElement('li');
+        item.textContent = `${link.title} - ${link.url}`;
 
-      // Edit button
-      const editBtn = document.createElement('button');
-      editBtn.textContent = 'Edit';
-      editBtn.onclick = async () => {
-        const newTitle = prompt('Enter new title:', link.title);
-        const newUrl = prompt('Enter new URL:', link.url);
-
-        if (newTitle && newUrl) {
+        // Delete button
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Delete';
+        delBtn.onclick = async () => {
           try {
-            const response = await fetch(`http://localhost:5000/api/updateLink/${link._id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title: newTitle, url: newUrl })
+            await fetch(`http://localhost:5000/api/deleteLink/${link._id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${jwt}` }
             });
-
-            const data = await response.json();
-            alert('Link updated!');
-            item.textContent = `${data.updated.title} - ${data.updated.url}`;
-            item.appendChild(delBtn);
-            item.appendChild(editBtn);
+            alert('Link deleted!');
+            item.remove();
           } catch (err) {
             console.error(err);
-            alert('Error updating link');
+            alert('Error deleting link');
           }
-        }
-      };
+        };
 
-      // Attach buttons
-      item.appendChild(delBtn);
-      item.appendChild(editBtn);
-      list.appendChild(item);
-    });
-  } catch (err) {
-    console.error(err);
-    alert('Error fetching links');
-  }
+        // Edit button
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Edit';
+        editBtn.onclick = async () => {
+          const newTitle = prompt('Enter new title:', link.title);
+          const newUrl = prompt('Enter new URL:', link.url);
+
+          if (newTitle && newUrl) {
+            try {
+              const response = await fetch(`http://localhost:5000/api/updateLink/${link._id}`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${jwt}`
+                },
+                body: JSON.stringify({ title: newTitle, url: newUrl })
+              });
+
+              const data = await response.json();
+              alert('Link updated!');
+              item.textContent = `${data.updated.title} - ${data.updated.url}`;
+              item.appendChild(delBtn);
+              item.appendChild(editBtn);
+            } catch (err) {
+              console.error(err);
+              alert('Error updating link');
+            }
+          }
+        };
+
+        // Attach buttons
+        item.appendChild(delBtn);
+        item.appendChild(editBtn);
+        list.appendChild(item);
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Error fetching links');
+    }
+  });
 });
 
 // Google Sign In
 function handleCredentialResponse(response) {
-  // Google returns an ID token
   const idToken = response.credential;
 
-  // Send it to backend for verification
   fetch('http://localhost:5000/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -105,6 +126,19 @@ function handleCredentialResponse(response) {
     .then(data => {
       chrome.storage.local.set({ jwt: data.token });
       console.log("Logged in:", data.user);
+      alert('Login successful!');
     })
-    .catch(err => console.error("Login failed", err));
+    .catch(err => {
+      console.error("Login failed", err);
+      alert('Login failed');
+    });
 }
+
+// Logout button
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  chrome.storage.local.remove('jwt', () => {
+    alert('Logged out successfully!');
+    console.log("JWT cleared");
+    location.reload(); // reload popup to show login again
+  });
+});
