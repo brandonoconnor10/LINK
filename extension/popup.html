@@ -10,17 +10,10 @@
     <button id="viewBtn">View Links</button>
     <ul id="linksList"></ul>
 
-    <!-- Google Sign-In -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <div id="g_id_onload"
-         data-client_id="YOUR_GOOGLE_CLIENT_ID"
-         data-callback="handleCredentialResponse">
-    </div>
-    <div class="g_id_signin" data-type="standard"></div>
-
-    <!-- Logout button -->
+    <!-- Login / Logout -->
+    <button id="loginBtn">Login with Google</button>
     <button id="logoutBtn">Logout</button>
 
-    <script src="popup.js"></script>
+    <script type="module" src="popup.js"></script>
 </body>
 </html>

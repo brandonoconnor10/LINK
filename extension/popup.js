@@ -1,3 +1,6 @@
+import { auth, provider } from "./firebase.js";
+import { signInWithPopup } from "firebase/auth";
+
 // Handle Save button
 document.getElementById('saveBtn').addEventListener('click', async () => {
   const url = document.getElementById('urlInput').value;
@@ -16,11 +19,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${jwt}`
         },
-        body: JSON.stringify({
-          url,
-          title,
-          originClient: 'extension'
-        })
+        body: JSON.stringify({ url, title, originClient: 'extension' })
       });
 
       const data = await response.json();
@@ -33,7 +32,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   });
 });
 
-// Handle View button (single clean handler)
+// Handle View button
 document.getElementById('viewBtn').addEventListener('click', async () => {
   chrome.storage.local.get('jwt', async ({ jwt }) => {
     if (!jwt) {
@@ -101,7 +100,6 @@ document.getElementById('viewBtn').addEventListener('click', async () => {
           }
         };
 
-        // Attach buttons
         item.appendChild(delBtn);
         item.appendChild(editBtn);
         list.appendChild(item);
@@ -113,32 +111,33 @@ document.getElementById('viewBtn').addEventListener('click', async () => {
   });
 });
 
-// Google Sign In
-function handleCredentialResponse(response) {
-  const idToken = response.credential;
+// Firebase Google Sign-In
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const idToken = await result.user.getIdToken();
 
-  fetch('http://localhost:5000/api/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ googleId: idToken }) // simplified for now
-  })
-    .then(res => res.json())
-    .then(data => {
-      chrome.storage.local.set({ jwt: data.token });
-      console.log("Logged in:", data.user);
-      alert('Login successful!');
-    })
-    .catch(err => {
-      console.error("Login failed", err);
-      alert('Login failed');
+    const res = await fetch("http://localhost:5000/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken })
     });
-}
+
+    const data = await res.json();
+    chrome.storage.local.set({ jwt: data.token });
+    console.log("Logged in:", data.user);
+    alert("Login successful!");
+  } catch (err) {
+    console.error("Login failed", err);
+    alert("Login failed");
+  }
+});
 
 // Logout button
 document.getElementById('logoutBtn').addEventListener('click', () => {
   chrome.storage.local.remove('jwt', () => {
     alert('Logged out successfully!');
     console.log("JWT cleared");
-    location.reload(); // reload popup to show login again
+    location.reload();
   });
 });
