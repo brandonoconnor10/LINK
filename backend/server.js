@@ -1,28 +1,27 @@
+require('dotenv').config();
+
 const express = require('express');
-const dotenv = require('dotenv');
+const admin = require("firebase-admin");
 const connectDB = require('./config/db');
 const cors = require('cors');
 
-dotenv.config();
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  })
+});
+
 connectDB();
 
 const app = express();
-
-// Middleware
 app.use(express.json());
 app.use(cors());
 app.use('/api', require('./routes/auth'));
-
-
-// Register Routes
 app.use('/api', require('./routes/links'));
 
-app.get('/', (req, res) => {
-  res.send('API running...');
-});
+app.get('/', (req, res) => res.send('API running...'));
 
 const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

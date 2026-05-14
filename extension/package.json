@@ -1,5 +1,17 @@
 {
+  "name": "link-extension",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "vite build && node -e \"require('fs').copyFileSync('src/manifest.json', 'dist/manifest.json')\" && node -e \"require('fs').copyFileSync('src/popup.js', 'dist/popup.js')\"",
+    "dev": "vite build --watch"
+  },
   "dependencies": {
     "firebase": "^12.13.0"
-  }
+  },
+  "devDependencies": {
+    "vite": "^6.4.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

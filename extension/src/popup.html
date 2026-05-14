@@ -1,19 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>Link</title>
 </head>
 <body>
+  <div id="loggedOut">
+    <p>You are not logged in.</p>
+    <button id="loginBtn">Login with Google</button>
+  </div>
+
+  <div id="loggedIn" style="display:none">
+    <p>Logged in ✓</p>
     <input id="titleInput" placeholder="Enter Title" />
     <input id="urlInput" placeholder="Enter URL" />
     <button id="saveBtn">Save Link</button>
     <button id="viewBtn">View Links</button>
     <ul id="linksList"></ul>
-
-    <!-- Login / Logout -->
-    <button id="loginBtn">Login with Google</button>
     <button id="logoutBtn">Logout</button>
+  </div>
 
-    <script type="module" src="popup.js"></script>
+  <script src="./popup.js"></script>
 </body>
 </html>

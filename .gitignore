@@ -137,3 +137,11 @@ dist
 
 mobile/LinkSaverMVP/node_modules/
 android/build/
+node_modules/
+.env
+serviceAccountKey.json
+
+node_modules/
+dist/
+.env
+manifest.json
