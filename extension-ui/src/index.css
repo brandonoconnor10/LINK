@@ -8,22 +8,32 @@
 @import "tailwindcss";
 
 :root {
-  --color-surface-dim: #0f1418;
+  --color-primary: #38bdf8;
+  --color-surface-lowest: #0a0f12;
+  --color-surface-low: #171c20;
   --color-surface: #0f1418;
-  --color-surface-container-lowest: #0a0f12;
-  --color-surface-container-low: #171c20;
-  --color-surface-container: #1b2024;
-  --color-surface-container-high: #252b2e;
-  --color-surface-container-highest: #303539;
-  --color-primary: #8ed5ff;
-  --color-sky-blue: #38bdf8;
+  --color-surface-high: #252b2e;
+  --color-surface-highest: #303539;
+  --color-on-surface: #dee3e8;
+  --color-on-surface-variant: #bdc8d1;
+}
+
+body {
+  background: #0a0f12;
+  color: #dee3e8;
+  font-family: "Montserrat", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 .glass-panel {
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(48, 53, 57, 0.3);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.1);
 }
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: rgba(15,20,24,0.5); }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 9999px; }
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: rgba(15,20,24,0.5); }

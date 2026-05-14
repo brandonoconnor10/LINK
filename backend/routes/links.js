@@ -21,6 +21,7 @@ const linkSchema = new mongoose.Schema({
   url: { type: String, required: true },
   favicon: { type: String, default: '' },
   tags: { type: [String], default: [] },
+  notes: { type: String, default: '' },
   section: { type: String, default: 'General' },
   originClient: { type: String, default: 'extension' },
   createdAt: { type: Date, default: Date.now }

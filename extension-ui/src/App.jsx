@@ -2,12 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
+import AddLinkPage from './pages/AddLinkPage';
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [jwt, setJwt] = useState(null);
   const [checking, setChecking] = useState(true);
   const [ready, setReady] = useState(false);
+  const [page, setPage] = useState('home'); // 'home' | 'addLink'
+  const [sectionNames, setSectionNames] = useState([]);
 
   useEffect(() => {
     Promise.all([
@@ -19,9 +22,7 @@ export default function App() {
         });
       }),
       document.fonts.ready,
-    ]).then(() => {
-      setTimeout(() => setReady(true), 50);
-    });
+    ]).then(() => setTimeout(() => setReady(true), 50));
   }, []);
 
   const handleLogin = (user, token) => {
@@ -40,22 +41,34 @@ export default function App() {
     chrome.storage.local.remove(['jwt', 'user'], () => {
       setUser(null);
       setJwt(null);
+      setPage('home');
     });
   };
 
+  const handleAddLink = (sections) => {
+    setSectionNames(sections.length > 0 ? sections : ['General']);
+    setPage('addLink');
+  };
+
+  const handleLinkSaved = (newLink) => {
+    setPage('home');
+  };
+
   return (
-    <div style={{ width: '380px', height: '560px', position: 'relative', background: '#0f1418' }}>
+    <div style={{ width: '380px', height: '560px', position: 'relative', background: '#0a0f12' }}>
+
+      {/* Glass overlay until ready */}
       {!ready && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 9999,
           backdropFilter: 'blur(16px)',
-          background: 'rgba(15,20,24,0.6)',
+          background: 'rgba(10,15,18,0.8)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
             width: 28, height: 28,
-            border: '2px solid rgba(142,213,255,0.15)',
-            borderTop: '2px solid #8ed5ff',
+            border: '2px solid rgba(56,189,248,0.15)',
+            borderTop: '2px solid #38bdf8',
             borderRadius: '50%',
             animation: 'spin 0.7s linear infinite',
           }} />
@@ -64,9 +77,23 @@ export default function App() {
       )}
 
       {!checking && (
-        user
-          ? <HomePage user={user} jwt={jwt} onLogout={handleLogout} />
-          : <LoginPage onLogin={handleLogin} />
+        !user ? (
+          <LoginPage onLogin={handleLogin} />
+        ) : page === 'addLink' ? (
+          <AddLinkPage
+            jwt={jwt}
+            sections={sectionNames}
+            onBack={() => setPage('home')}
+            onSaved={handleLinkSaved}
+          />
+        ) : (
+          <HomePage
+            user={user}
+            jwt={jwt}
+            onLogout={handleLogout}
+            onAddLink={handleAddLink}
+          />
+        )
       )}
     </div>
   );

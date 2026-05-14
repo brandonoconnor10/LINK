@@ -6,7 +6,7 @@ import PinCard from '../components/PinCard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-export default function HomePage({ user, onLogout, jwt }) {
+export default function HomePage({ user, onLogout, jwt, onAddLink }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +21,7 @@ export default function HomePage({ user, onLogout, jwt }) {
       });
       const data = await res.json();
       setLinks(Array.isArray(data) ? data : []);
-    } catch (err) {
+    } catch {
       setError('Failed to load links');
     } finally {
       setLoading(false);
@@ -40,13 +40,14 @@ export default function HomePage({ user, onLogout, jwt }) {
     }
   };
 
-  // Group links by section
   const sections = links.reduce((acc, link) => {
     const s = link.section || 'General';
     if (!acc[s]) acc[s] = [];
     acc[s].push(link);
     return acc;
   }, {});
+
+  const sectionNames = Object.keys(sections);
 
   const filteredSections = Object.entries(sections).map(([title, pins]) => ({
     title,
@@ -78,7 +79,6 @@ export default function HomePage({ user, onLogout, jwt }) {
               className="bg-white/5 border-none rounded-full py-1.5 pl-8 pr-4 text-[10px] font-semibold text-slate-300 focus:ring-1 focus:ring-sky-400/50 w-36 outline-none placeholder:text-slate-600"
             />
           </div>
-          {/* Settings — disabled until settings page is built */}
           <button className="p-1.5 rounded-full hover:bg-white/5 text-slate-600 transition-all cursor-not-allowed" title="Coming soon">
             <Settings className="w-5 h-5" />
           </button>
@@ -89,9 +89,9 @@ export default function HomePage({ user, onLogout, jwt }) {
       <main className="flex-1 overflow-y-auto px-4 py-4 space-y-6"
         style={{ background: 'linear-gradient(to bottom, #0d1117, #0a0f12)' }}>
 
-        {/* Add Section — always pinned at top */}
+        {/* Add Section — pinned at top */}
         {searchQuery === '' && (
-          <button className="glass-panel w-full group flex items-center justify-center gap-2 p-3 rounded-xl border-dashed border-white/10 hover:border-sky-400/40 hover:bg-sky-400/5 transition-all duration-300">
+          <button className="glass-panel w-full group flex items-center justify-center gap-2 p-3 rounded-xl border-dashed hover:border-sky-400/40 hover:bg-sky-400/5 transition-all duration-300">
             <FolderPlus className="w-4 h-4 text-slate-500 group-hover:text-sky-400 transition-colors" />
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 group-hover:text-sky-400 transition-colors">
               Add Section
@@ -99,7 +99,6 @@ export default function HomePage({ user, onLogout, jwt }) {
           </button>
         )}
 
-        {/* Loading */}
         {loading && (
           <div className="flex items-center justify-center py-16">
             <div style={{
@@ -112,10 +111,8 @@ export default function HomePage({ user, onLogout, jwt }) {
           </div>
         )}
 
-        {/* Error */}
         {error && <div className="text-xs text-red-400 text-center py-4">{error}</div>}
 
-        {/* Empty state */}
         {!loading && links.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-slate-500">
             <LinkIcon className="w-8 h-8 mb-3 opacity-20" />
@@ -124,7 +121,6 @@ export default function HomePage({ user, onLogout, jwt }) {
           </div>
         )}
 
-        {/* Sections */}
         {filteredSections.map((section, idx) => (
           <motion.section
             key={section.title}
@@ -150,7 +146,6 @@ export default function HomePage({ user, onLogout, jwt }) {
           </motion.section>
         ))}
 
-        {/* No search results */}
         {filteredSections.length === 0 && searchQuery !== '' && (
           <div className="flex flex-col items-center justify-center py-16 text-slate-500">
             <Search className="w-8 h-8 mb-3 opacity-20" />
@@ -159,9 +154,10 @@ export default function HomePage({ user, onLogout, jwt }) {
         )}
       </main>
 
-      {/* FAB — Add Link */}
+      {/* FAB */}
       <div className="absolute bottom-16 right-4 z-50">
         <button
+          onClick={() => onAddLink(sectionNames)}
           className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 hover:scale-105"
           style={{ background: '#38bdf8', boxShadow: '0 0 20px rgba(56,189,248,0.4)' }}
         >
