@@ -1,17 +1,20 @@
 /* eslint-disable */
 import React, { useState, useEffect, useRef } from 'react';
-import { Link as LinkIcon, Search, Settings, Plus, ExternalLink, FolderPlus, X, Trash2, Check } from 'lucide-react';
+import {
+  Link as LinkIcon, Search, Settings, Plus, ExternalLink,
+  FolderPlus, X, Trash2, Check
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import PinCard from '../components/PinCard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, onSectionsChange, refreshKey }) {
+export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, refreshKey }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [links, setLinks] = useState([]);
+  const [sections, setSections] = useState(['General']);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [sections, setSections] = useState(['General']);
   const [showSectionModal, setShowSectionModal] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
   const [editingSectionTitle, setEditingSectionTitle] = useState(null);
@@ -19,15 +22,8 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
   const editInputRef = useRef(null);
 
   useEffect(() => {
-    // Load persisted sections from storage
-    chrome.storage.local.get(['sections'], (result) => {
-      if (result.sections && result.sections.length > 0) {
-        setSections(result.sections);
-      }
-    });
-  }, []);
-
-  useEffect(() => { fetchLinks(); }, [refreshKey]);
+    loadAll();
+  }, [refreshKey]);
 
   useEffect(() => {
     if (editingSectionTitle && editInputRef.current) {
@@ -35,29 +31,58 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
     }
   }, [editingSectionTitle]);
 
-  const fetchLinks = async () => {
+  const loadAll = async () => {
     setLoading(true);
+    setError('');
     try {
-      const res = await fetch(`${API_URL}/api/getLinks`, {
-        headers: { Authorization: `Bearer ${jwt}` }
-      });
-      const data = await res.json();
-      const linkList = Array.isArray(data) ? data : [];
+      const [linksRes, sectionsRes] = await Promise.all([
+        fetch(`${API_URL}/api/getLinks`, {
+          headers: { Authorization: `Bearer ${jwt}` }
+        }),
+        fetch(`${API_URL}/api/getSections`, {
+          headers: { Authorization: `Bearer ${jwt}` }
+        })
+      ]);
+
+      const linksData = await linksRes.json();
+      const sectionsData = await sectionsRes.json();
+
+      const linkList = Array.isArray(linksData) ? linksData : [];
       setLinks(linkList);
 
-      // Merge sections from DB links with stored sections
-      chrome.storage.local.get(['sections'], (result) => {
-        const storedSections = result.sections || ['General'];
-        const dbSections = [...new Set(linkList.map(l => l.section || 'General'))];
-        const merged = [...new Set([...storedSections, ...dbSections])];
-        setSections(merged);
-        onSectionsChange(merged);
-      });
+      // Merge DB sections with any sections that exist in links but aren't listed
+      const dbSections = sectionsData.sections || ['General'];
+      const linkSections = [...new Set(linkList.map(l => l.section || 'General'))];
+      const merged = [...new Set([...dbSections, ...linkSections])];
+      setSections(merged);
+
+      // If merged differs from DB, save back
+      if (merged.length !== dbSections.length) {
+        await saveSectionsToDB(merged);
+      }
     } catch {
-      setError('Failed to load links');
+      setError('Failed to load data');
     } finally {
       setLoading(false);
     }
+  };
+
+  const saveSectionsToDB = async (newSections) => {
+    try {
+      await fetch(`${API_URL}/api/saveSections`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`
+        },
+        body: JSON.stringify({ sections: newSections })
+      });
+    } catch {}
+  };
+
+  const updateSections = async (newSections) => {
+    setSections(newSections);
+    await saveSectionsToDB(newSections);
   };
 
   const handleDelete = async (id) => {
@@ -81,20 +106,16 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
         headers: { Authorization: `Bearer ${jwt}` }
       }).catch(() => {})
     ));
-
-    // Remove from state
     setLinks(prev => prev.filter(l => (l.section || 'General') !== sectionTitle));
     const updated = sections.filter(s => s !== sectionTitle);
-    setSections(updated);
-    onSectionsChange(updated);
+    await updateSections(updated);
   };
 
-  const handleAddSection = () => {
+  const handleAddSection = async () => {
     const name = newSectionName.trim();
     if (!name || sections.includes(name)) return;
     const updated = [...sections, name];
-    setSections(updated);
-    onSectionsChange(updated);
+    await updateSections(updated);
     setNewSectionName('');
     setShowSectionModal(false);
   };
@@ -111,29 +132,32 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
     await Promise.all(sectionLinks.map(l =>
       fetch(`${API_URL}/api/updateLink/${l._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`
+        },
         body: JSON.stringify({ ...l, section: newName })
       }).catch(() => {})
     ));
 
-    // Update local state
     setLinks(prev => prev.map(l =>
       (l.section || 'General') === oldName ? { ...l, section: newName } : l
     ));
     const updated = sections.map(s => s === oldName ? newName : s);
-    setSections(updated);
-    onSectionsChange(updated);
+    await updateSections(updated);
     setEditingSectionTitle(null);
   };
 
   const filteredSections = sections.map(title => ({
     title,
-    pins: links.filter(l => (l.section || 'General') === title).filter(pin =>
-      searchQuery === '' ||
-      pin.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pin.url?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pin.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    )
+    pins: links
+      .filter(l => (l.section || 'General') === title)
+      .filter(pin =>
+        searchQuery === '' ||
+        pin.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pin.url?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        pin.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
   })).filter(s => searchQuery === '' ? true : s.pins.length > 0);
 
   return (
@@ -157,8 +181,10 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
             >
               <div className="flex items-center justify-between">
                 <h3 className="font-['Fredoka_One'] text-sky-400 text-lg">New Section</h3>
-                <button onClick={() => { setShowSectionModal(false); setNewSectionName(''); }}
-                  className="text-slate-500 hover:text-slate-300 transition-colors">
+                <button
+                  onClick={() => { setShowSectionModal(false); setNewSectionName(''); }}
+                  className="text-slate-500 hover:text-slate-300 transition-colors"
+                >
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -173,13 +199,17 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
                 style={{ background: '#171c20' }}
               />
               <div className="flex gap-3">
-                <button onClick={() => { setShowSectionModal(false); setNewSectionName(''); }}
-                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-400 text-xs font-bold uppercase tracking-widest hover:bg-white/5 transition-all">
+                <button
+                  onClick={() => { setShowSectionModal(false); setNewSectionName(''); }}
+                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-400 text-xs font-bold uppercase tracking-widest hover:bg-white/5 transition-all"
+                >
                   Cancel
                 </button>
-                <button onClick={handleAddSection}
+                <button
+                  onClick={handleAddSection}
                   className="flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all active:scale-95"
-                  style={{ background: '#38bdf8', color: '#0a0f12' }}>
+                  style={{ background: '#38bdf8', color: '#0a0f12' }}
+                >
                   Create
                 </button>
               </div>
@@ -206,7 +236,10 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
               className="bg-white/5 border-none rounded-full py-1.5 pl-8 pr-4 text-[10px] font-semibold text-slate-300 focus:ring-1 focus:ring-sky-400/50 w-36 outline-none placeholder:text-slate-600"
             />
           </div>
-          <button className="p-1.5 rounded-full hover:bg-white/5 text-slate-600 transition-all cursor-not-allowed" title="Coming soon">
+          <button
+            className="p-1.5 rounded-full hover:bg-white/5 text-slate-600 transition-all cursor-not-allowed"
+            title="Coming soon"
+          >
             <Settings className="w-5 h-5" />
           </button>
         </div>
@@ -231,11 +264,19 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
 
         {loading && (
           <div className="flex items-center justify-center py-16">
-            <div style={{ width: 24, height: 24, border: '2px solid rgba(56,189,248,0.15)', borderTop: '2px solid #38bdf8', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+            <div style={{
+              width: 24, height: 24,
+              border: '2px solid rgba(56,189,248,0.15)',
+              borderTop: '2px solid #38bdf8',
+              borderRadius: '50%',
+              animation: 'spin 0.7s linear infinite'
+            }} />
           </div>
         )}
 
-        {error && <div className="text-xs text-red-400 text-center py-4">{error}</div>}
+        {error && (
+          <div className="text-xs text-red-400 text-center py-4">{error}</div>
+        )}
 
         {!loading && links.length === 0 && sections.length <= 1 && (
           <div className="flex flex-col items-center justify-center py-16 text-slate-500">
@@ -245,7 +286,7 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
           </div>
         )}
 
-        {filteredSections.map((section, idx) => (
+        {!loading && filteredSections.map((section, idx) => (
           <motion.section
             key={section.title}
             initial={{ opacity: 0, y: 20 }}
@@ -253,7 +294,6 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
             transition={{ delay: idx * 0.08 }}
           >
             <div className="flex items-center justify-between mb-3 px-1">
-              {/* Editable section title */}
               {editingSectionTitle === section.title ? (
                 <div className="flex items-center gap-2 flex-1">
                   <input
@@ -267,12 +307,16 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
                     }}
                     className="font-['Fredoka_One'] text-xs tracking-widest uppercase bg-transparent border-b border-sky-400/50 text-sky-400 outline-none w-32"
                   />
-                  <button onClick={() => handleRenameSection(section.title)}
-                    className="text-sky-400 hover:text-sky-300 transition-colors">
+                  <button
+                    onClick={() => handleRenameSection(section.title)}
+                    className="text-sky-400 hover:text-sky-300 transition-colors"
+                  >
                     <Check className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => setEditingSectionTitle(null)}
-                    className="text-slate-500 hover:text-slate-300 transition-colors">
+                  <button
+                    onClick={() => setEditingSectionTitle(null)}
+                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                  >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -280,7 +324,10 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
                 <h2
                   className="font-['Fredoka_One'] text-sky-400 text-xs tracking-widest uppercase cursor-pointer hover:text-sky-300 transition-colors"
                   title="Click to rename"
-                  onClick={() => { setEditingSectionTitle(section.title); setEditingSectionValue(section.title); }}
+                  onClick={() => {
+                    setEditingSectionTitle(section.title);
+                    setEditingSectionValue(section.title);
+                  }}
                 >
                   {section.title}
                 </h2>
@@ -343,7 +390,9 @@ export default function HomePage({ user, jwt, onLogout, onAddLink, onEditLink, o
           <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Sync Active</span>
         </div>
         <a href="#" className="flex items-center gap-1.5 group">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 group-hover:text-sky-400 transition-colors">Web App</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 group-hover:text-sky-400 transition-colors">
+            Web App
+          </span>
           <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-sky-400 transition-colors" />
         </a>
       </footer>

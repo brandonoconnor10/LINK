@@ -11,20 +11,18 @@ export default function App() {
   const [checking, setChecking] = useState(true);
   const [ready, setReady] = useState(false);
   const [page, setPage] = useState('home');
-  const [sections, setSections] = useState(['General']);
   const [editingLink, setEditingLink] = useState(null);
+  const [currentSections, setCurrentSections] = useState(['General']);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     Promise.all([
       new Promise(resolve => {
-        chrome.storage.local.get(['jwt', 'user', 'rememberMe', 'sections'], (result) => {
-          // Only auto-login if rememberMe was explicitly set to true
+        chrome.storage.local.get(['jwt', 'user', 'rememberMe'], (result) => {
           if (result.rememberMe === true && result.jwt && result.user) {
             setUser(result.user);
             setJwt(result.jwt);
           }
-          if (result.sections) setSections(result.sections);
           setChecking(false);
           resolve();
         });
@@ -36,11 +34,9 @@ export default function App() {
   const handleLogin = (user, token, rememberMe) => {
     setUser(user);
     setJwt(token);
-    // Only persist if remember me is checked
     if (rememberMe) {
       chrome.storage.local.set({ jwt: token, user, rememberMe: true });
     } else {
-      // Clear any previous remember me and don't persist jwt
       chrome.storage.local.remove(['jwt', 'user', 'rememberMe']);
     }
   };
@@ -57,22 +53,18 @@ export default function App() {
       setUser(null);
       setJwt(null);
       setPage('home');
+      setCurrentSections(['General']);
     });
   };
 
-  const updateSections = (newSections) => {
-    setSections(newSections);
-    chrome.storage.local.set({ sections: newSections });
-  };
-
-  const handleAddLink = (sectionList) => {
-    setSections(sectionList);
+  const handleAddLink = (sections) => {
+    setCurrentSections(sections);
     setPage('addLink');
   };
 
-  const handleEditLink = (link, sectionList) => {
+  const handleEditLink = (link, sections) => {
     setEditingLink(link);
-    setSections(sectionList);
+    setCurrentSections(sections);
     setPage('editLink');
   };
 
@@ -113,7 +105,7 @@ export default function App() {
         ) : page === 'addLink' ? (
           <AddLinkPage
             jwt={jwt}
-            sections={sections}
+            sections={currentSections}
             onBack={() => setPage('home')}
             onSaved={handleLinkSaved}
           />
@@ -121,7 +113,7 @@ export default function App() {
           <EditLinkPage
             jwt={jwt}
             link={editingLink}
-            sections={sections}
+            sections={currentSections}
             onBack={() => { setPage('home'); setEditingLink(null); }}
             onUpdated={handleLinkUpdated}
           />
@@ -132,7 +124,6 @@ export default function App() {
             onLogout={handleLogout}
             onAddLink={handleAddLink}
             onEditLink={handleEditLink}
-            onSectionsChange={updateSections}
             refreshKey={refreshKey}
           />
         )
