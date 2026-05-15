@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState } from 'react';
-import { Link as LinkIcon, Settings } from 'lucide-react';
+import { Link as LinkIcon } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -20,11 +20,14 @@ function removeCachedToken(token) {
 export default function LoginPage({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [hovering, setHovering] = useState(false);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
     try {
+      // Always clear cached token so it always asks which account
       try {
         const cached = await getAuthToken(false);
         if (cached) await removeCachedToken(cached);
@@ -41,9 +44,7 @@ export default function LoginPage({ onLogin }) {
       const data = await res.json();
       if (!data.token) throw new Error('No JWT returned');
 
-      chrome.storage.local.set({ jwt: data.token, user: data.user }, () => {
-        onLogin(data.user, data.token);
-      });
+      onLogin(data.user, data.token, rememberMe);
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {
@@ -53,8 +54,6 @@ export default function LoginPage({ onLogin }) {
 
   return (
     <div className="flex flex-col" style={{ width: '380px', height: '560px', background: '#0a0f12' }}>
-
-      {/* Radial glow */}
       <div className="fixed inset-0 pointer-events-none" style={{
         background: 'radial-gradient(circle at 50% 40%, rgba(56,189,248,0.12) 0%, transparent 65%)'
       }} />
@@ -66,15 +65,10 @@ export default function LoginPage({ onLogin }) {
           <LinkIcon className="w-5 h-5 text-sky-400" />
           <span className="font-['Fredoka_One'] text-xl tracking-wider text-sky-400 select-none">LINK</span>
         </div>
-        <button className="p-1.5 rounded-full hover:bg-white/5 text-sky-400 transition-all">
-          <Settings className="w-5 h-5" />
-        </button>
       </header>
 
       {/* Main */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden">
-
-        {/* Blur orb */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-64 h-64 rounded-full opacity-10"
             style={{ background: '#38bdf8', filter: 'blur(80px)' }} />
@@ -120,8 +114,14 @@ export default function LoginPage({ onLogin }) {
             <button
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full h-12 flex items-center justify-center gap-3 rounded-xl transition-all font-semibold text-sm disabled:opacity-50 border border-white/10 hover:border-sky-400/30 hover:bg-sky-400/5"
-              style={{ background: 'rgba(255,255,255,0.03)' }}
+              onMouseEnter={() => setHovering(true)}
+              onMouseLeave={() => setHovering(false)}
+              className="w-full h-12 flex items-center justify-center gap-3 rounded-xl transition-all duration-200 font-semibold text-sm disabled:opacity-50"
+              style={{
+                background: hovering ? 'rgba(56,189,248,0.12)' : 'rgba(255,255,255,0.03)',
+                border: hovering ? '1px solid rgba(56,189,248,0.5)' : '1px solid rgba(255,255,255,0.1)',
+                boxShadow: hovering ? '0 0 20px rgba(56,189,248,0.15)' : 'none',
+              }}
             >
               {loading ? (
                 <div style={{
@@ -144,6 +144,25 @@ export default function LoginPage({ onLogin }) {
               )}
             </button>
 
+            {/* Remember Me */}
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={() => setRememberMe(!rememberMe)}
+                className="w-4 h-4 rounded border flex items-center justify-center transition-all"
+                style={{
+                  background: rememberMe ? '#38bdf8' : 'transparent',
+                  border: rememberMe ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.2)',
+                }}
+              >
+                {rememberMe && (
+                  <svg className="w-2.5 h-2.5 text-slate-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+              <span className="text-[11px] text-slate-500 font-medium">Remember me on this device</span>
+            </div>
+
             {/* Terms */}
             <p className="text-center text-[10px] text-slate-600 font-medium">
               By continuing, you agree to our{' '}
@@ -164,7 +183,7 @@ export default function LoginPage({ onLogin }) {
           <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Network Active</span>
         </div>
         <a href="#" className="flex items-center gap-1.5 group">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 group-hover:text-slate-300 transition-colors">Web App</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 group-hover:text-sky-400 transition-colors">Web App</span>
         </a>
       </footer>
 

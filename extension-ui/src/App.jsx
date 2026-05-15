@@ -3,20 +3,28 @@ import React, { useState, useEffect } from 'react';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import AddLinkPage from './pages/AddLinkPage';
+import EditLinkPage from './pages/EditLinkPage';
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [jwt, setJwt] = useState(null);
   const [checking, setChecking] = useState(true);
   const [ready, setReady] = useState(false);
-  const [page, setPage] = useState('home'); // 'home' | 'addLink'
-  const [sectionNames, setSectionNames] = useState([]);
+  const [page, setPage] = useState('home');
+  const [sections, setSections] = useState(['General']);
+  const [editingLink, setEditingLink] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     Promise.all([
       new Promise(resolve => {
-        chrome.storage.local.get(['jwt', 'user'], ({ jwt, user }) => {
-          if (jwt && user) { setUser(user); setJwt(jwt); }
+        chrome.storage.local.get(['jwt', 'user', 'rememberMe', 'sections'], (result) => {
+          // Only auto-login if rememberMe was explicitly set to true
+          if (result.rememberMe === true && result.jwt && result.user) {
+            setUser(result.user);
+            setJwt(result.jwt);
+          }
+          if (result.sections) setSections(result.sections);
           setChecking(false);
           resolve();
         });
@@ -25,9 +33,16 @@ export default function App() {
     ]).then(() => setTimeout(() => setReady(true), 50));
   }, []);
 
-  const handleLogin = (user, token) => {
+  const handleLogin = (user, token, rememberMe) => {
     setUser(user);
     setJwt(token);
+    // Only persist if remember me is checked
+    if (rememberMe) {
+      chrome.storage.local.set({ jwt: token, user, rememberMe: true });
+    } else {
+      // Clear any previous remember me and don't persist jwt
+      chrome.storage.local.remove(['jwt', 'user', 'rememberMe']);
+    }
   };
 
   const handleLogout = () => {
@@ -38,26 +53,42 @@ export default function App() {
         });
       }
     });
-    chrome.storage.local.remove(['jwt', 'user'], () => {
+    chrome.storage.local.remove(['jwt', 'user', 'rememberMe'], () => {
       setUser(null);
       setJwt(null);
       setPage('home');
     });
   };
 
-  const handleAddLink = (sections) => {
-    setSectionNames(sections.length > 0 ? sections : ['General']);
+  const updateSections = (newSections) => {
+    setSections(newSections);
+    chrome.storage.local.set({ sections: newSections });
+  };
+
+  const handleAddLink = (sectionList) => {
+    setSections(sectionList);
     setPage('addLink');
   };
 
-  const handleLinkSaved = (newLink) => {
+  const handleEditLink = (link, sectionList) => {
+    setEditingLink(link);
+    setSections(sectionList);
+    setPage('editLink');
+  };
+
+  const handleLinkSaved = () => {
+    setRefreshKey(k => k + 1);
     setPage('home');
+  };
+
+  const handleLinkUpdated = () => {
+    setRefreshKey(k => k + 1);
+    setPage('home');
+    setEditingLink(null);
   };
 
   return (
     <div style={{ width: '380px', height: '560px', position: 'relative', background: '#0a0f12' }}>
-
-      {/* Glass overlay until ready */}
       {!ready && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 9999,
@@ -82,9 +113,17 @@ export default function App() {
         ) : page === 'addLink' ? (
           <AddLinkPage
             jwt={jwt}
-            sections={sectionNames}
+            sections={sections}
             onBack={() => setPage('home')}
             onSaved={handleLinkSaved}
+          />
+        ) : page === 'editLink' ? (
+          <EditLinkPage
+            jwt={jwt}
+            link={editingLink}
+            sections={sections}
+            onBack={() => { setPage('home'); setEditingLink(null); }}
+            onUpdated={handleLinkUpdated}
           />
         ) : (
           <HomePage
@@ -92,6 +131,9 @@ export default function App() {
             jwt={jwt}
             onLogout={handleLogout}
             onAddLink={handleAddLink}
+            onEditLink={handleEditLink}
+            onSectionsChange={updateSections}
+            refreshKey={refreshKey}
           />
         )
       )}
